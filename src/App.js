@@ -143,8 +143,6 @@ export default function App() {
       targetIndex = items.findIndex(i => i.id === directionOrTargetId)
     }
 
-    if (targetIndex === index) return
-
     const reordered = [...items]
     const [movedItem] = reordered.splice(index, 1)
     reordered.splice(targetIndex, 0, movedItem)
@@ -203,9 +201,9 @@ export default function App() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <input type="date" value={serviceDate} onChange={e => setServiceDate(e.target.value)} 
-            style={{ flex: 1, padding: '8px', borderRadius: 4, border: '1px solid #D1CDC7', background: '#F5F2ED' }} />
-          <button onClick={() => setShowExportModal(true)} style={{ padding: '8px 12px', borderRadius: 4, border: '1px solid #D1CDC7', background: 'white' }}>Export</button>
-          <button onClick={addItem} style={{ padding: '8px 12px', borderRadius: 4, border: 'none', background: '#5C635A', color: 'white' }}>+ Item</button>
+            style={{ flex: 1, padding: '10px', borderRadius: 4, border: '1px solid #D1CDC7', background: '#F5F2ED', outline: 'none' }} />
+          <button onClick={() => setShowExportModal(true)} style={headerBtnStyle}>Export</button>
+          <button onClick={addItem} style={{ ...headerBtnStyle, background: '#5C635A', color: 'white', border: 'none' }}>+ Item</button>
         </div>
       </div>
 
@@ -237,7 +235,7 @@ export default function App() {
             <button onClick={() => { exportPDF(false, false); setShowExportModal(false) }} style={modalBtnStyle}>Bulletin Format</button>
             <button onClick={() => { exportPDF(true, false); setShowExportModal(false) }} style={modalBtnStyle}>With Notes</button>
             <button onClick={() => { exportPDF(true, true); setShowExportModal(false) }} style={modalBtnStyle}>Full Script</button>
-            <button onClick={() => setShowExportModal(false)} style={{ width: '100%', background: 'none', border: 'none', color: '#777', marginTop: 12 }}>Return</button>
+            <button onClick={() => setShowExportModal(false)} style={{ width: '100%', background: 'none', border: 'none', color: '#777', marginTop: 12, cursor: 'pointer' }}>Return</button>
           </div>
         </div>
       )}
@@ -272,89 +270,97 @@ function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpd
     else setSwipeOffset(0) 
   }
 
-  const handleAction = () => {
+  const handleAction = (e) => {
+    e.stopPropagation() // Stop interference
     if (swipeOffset > 0) setSwipeOffset(0)
     else onToggle()
-  }
-
-  const handleDelete = (e) => {
-    e.stopPropagation()
-    if(window.confirm('Delete this item?')) onDelete()
-    setSwipeOffset(0)
   }
 
   return (
     <div style={{ position: 'relative', marginBottom: '12px', overflow: 'hidden', borderRadius: '8px' }}>
       <div 
-        onClick={handleDelete}
-        style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 80, background: '#8B4513', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+        onClick={() => { if(window.confirm('Delete?')) onDelete(); setSwipeOffset(0) }}
+        style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 80, background: '#8B4513', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
         DELETE
       </div>
 
       <div 
-        draggable={!isMobile} onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart(item.id) }} 
-        onDragOver={e => e.preventDefault()} onDrop={() => onDrop(item.id)}
+        draggable={!isMobile} 
+        onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart(item.id) }} 
+        onDragOver={e => e.preventDefault()} 
+        onDrop={() => onDrop(item.id)}
         onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
         onClick={handleAction}
         style={{ 
           background: bgColor, border: '1px solid #D1CDC7', zIndex: 2, position: 'relative',
-          transition: 'transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.1)', transform: `translateX(-${swipeOffset}px)`
+          transition: 'transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.1)', transform: `translateX(-${swipeOffset}px)`,
+          cursor: isMobile ? 'default' : 'pointer'
         }}
       >
-        <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ width: 28, height: 28, borderRadius: '50%', border: '1px solid #AAA', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#555', background: 'rgba(255,255,255,0.3)' }}>
             {index + 1}
           </div>
 
           <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: isNS ? '#8B4513' : '#5C635A', textTransform: 'uppercase', letterSpacing: 0.5 }}>{item.type}</div>
-              <div style={{ display: 'flex', gap: 6, opacity: 0.4 }}>
-                {hasNotes && <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: 1 }}>NTS</span>}
-                {hasScript && <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: 1 }}>SCR</span>}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+              <div style={{ fontSize: 9, fontWeight: 800, color: isNS ? '#8B4513' : '#5C635A', textTransform: 'uppercase', letterSpacing: 1 }}>{item.type}</div>
+              <div style={{ display: 'flex', gap: 6, opacity: 0.5 }}>
+                {hasNotes && <span style={{ fontSize: 8, fontWeight: 900 }}>NTS</span>}
+                {hasScript && <span style={{ fontSize: 8, fontWeight: 900 }}>SCR</span>}
               </div>
             </div>
-            <div style={{ fontWeight: 600, fontSize: 18, color: '#2C2C2C', lineHeight: 1.2 }}>{item.title}</div>
+            <div style={{ fontWeight: 600, fontSize: 19, color: '#2C2C2C', lineHeight: 1.1 }}>{item.title}</div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             {isMobile ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {index > 0 && <button onClick={(e) => { e.stopPropagation(); onMove(item.id, 'up') }} style={arrowBtnStyle}>▲</button>}
                 {index < totalItems - 1 && <button onClick={(e) => { e.stopPropagation(); onMove(item.id, 'down') }} style={arrowBtnStyle}>▼</button>}
               </div>
             ) : (
-              <div style={{ color: '#AAA', cursor: 'grab', padding: '0 8px' }}>⠿</div>
+              <div style={{ color: '#AAA', cursor: 'grab', padding: '0 8px', fontSize: 18 }}>⠿</div>
             )}
-            <div style={{ fontSize: 16, color: '#5C635A', transition: 'transform 0.3s', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>⌄</div>
+            {/* THE KEBAB MENU TRIGGER */}
+            <div 
+              style={{ fontSize: 20, color: '#5C635A', opacity: 0.6, padding: '4px' }}
+              onClick={(e) => { e.stopPropagation(); handleAction(e); }}
+            >⋮</div>
           </div>
         </div>
 
         {expanded && (
-          <div style={{ padding: '0 16px 16px', borderTop: '1px solid rgba(0,0,0,0.05)' }} onClick={e => e.stopPropagation()}>
-            <div style={{ marginTop: 10 }}>
+          <div style={{ padding: '0 16px 20px', borderTop: '1px solid rgba(0,0,0,0.05)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ marginTop: 16 }}>
               <label style={labelStyle}>Item Name</label>
-              <input value={item.title} onChange={e => onUpdate(item.id, 'title', e.target.value)} style={cardInputStyle} />
+              <input value={item.title} onChange={e => onUpdate(item.id, 'title', e.target.value)} style={cleanInputStyle} />
             </div>
             {isNS && Object.keys(item.fill_in).map(f => (
-              <div key={f} style={{ marginTop: 10 }}>
+              <div key={f} style={{ marginTop: 16 }}>
                 <label style={labelStyle}>{f}</label>
-                <input value={item.fill_in[f] || ''} onChange={e => onFillIn(item.id, f, e.target.value)} style={cardInputStyle} />
+                <input value={item.fill_in[f] || ''} onChange={e => onFillIn(item.id, f, e.target.value)} style={cleanInputStyle} />
               </div>
             ))}
-            <div style={{ marginTop: 10 }}>
+            <div style={{ marginTop: 16 }}>
               <label style={labelStyle}>Director Notes</label>
-              <textarea value={item.notes} onChange={e => onUpdate(item.id, 'notes', e.target.value)} style={cardInputStyle} />
+              <textarea value={item.notes} onChange={e => onUpdate(item.id, 'notes', e.target.value)} style={{ ...cleanInputStyle, minHeight: 60 }} />
             </div>
-            <div style={{ marginTop: 10 }}>
+            <div style={{ marginTop: 16 }}>
               <label style={labelStyle}>Full Script</label>
-              <textarea value={item.script} onChange={e => onUpdate(item.id, 'script', e.target.value)} style={{ ...cardInputStyle, minHeight: 80 }} />
+              <textarea value={item.script} onChange={e => onUpdate(item.id, 'script', e.target.value)} style={{ ...cleanInputStyle, minHeight: 100 }} />
             </div>
-            <div style={{ marginTop: 20, background: 'rgba(0,0,0,0.03)', borderRadius: 4, padding: 12 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#666' }}>MESSAGES</div>
-              {comments.map(c => <div key={c.id} style={{ fontSize: 13, marginTop: 4 }}><strong>{c.author_name}:</strong> {c.body}</div>)}
-              <input value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => { if(e.key === 'Enter') { onAddComment(item.id, msg); setMsg('') }}}
-                placeholder="Write a message..." style={{ width: '100%', border: '1px solid #D1CDC7', padding: 8, borderRadius: 4, marginTop: 8, fontSize: 14, background: 'transparent' }} />
+            
+            <div style={{ marginTop: 24, background: 'rgba(0,0,0,0.03)', borderRadius: 6, padding: 14 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: '#888', textTransform: 'uppercase', marginBottom: 10, letterSpacing: 1 }}>Messages</div>
+              {comments.map(c => <div key={c.id} style={{ fontSize: 14, marginBottom: 6, borderBottom: '1px solid rgba(0,0,0,0.02)', paddingBottom: 4 }}><strong>{c.author_name}:</strong> {c.body}</div>)}
+              <input 
+                value={msg} 
+                onChange={e => setMsg(e.target.value)} 
+                onKeyDown={e => { if(e.key === 'Enter') { onAddComment(item.id, msg); setMsg('') }}}
+                placeholder="Write a message..." 
+                style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '1px solid #CCC', padding: '8px 0', fontSize: 14, outline: 'none', marginTop: 10 }} 
+              />
             </div>
           </div>
         )}
@@ -363,7 +369,8 @@ function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpd
   )
 }
 
-const labelStyle = { fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase' }
-const cardInputStyle = { width: '100%', padding: '10px', borderRadius: 4, border: '1px solid #D1CDC7', fontSize: 14, marginTop: 4, outline: 'none', background: 'rgba(255,255,255,0.5)', fontFamily: 'serif' }
+const labelStyle = { fontSize: 9, fontWeight: 800, color: '#999', textTransform: 'uppercase', letterSpacing: 0.5 }
+const cleanInputStyle = { width: '100%', padding: '8px 0', border: 'none', borderBottom: '1px solid #D1CDC7', background: 'transparent', fontSize: 16, outline: 'none', fontFamily: 'serif', marginTop: 4 }
+const headerBtnStyle = { padding: '10px 16px', borderRadius: 6, border: '1px solid #D1CDC7', background: 'white', fontSize: 14, fontWeight: 600, cursor: 'pointer' }
 const arrowBtnStyle = { border: 'none', background: 'transparent', padding: '0 8px', fontSize: '10px', color: '#888', cursor: 'pointer' }
-const modalBtnStyle = { width: '100%', padding: 14, textAlign: 'left', borderRadius: 4, border: '1px solid #D1CDC7', background: 'white', marginBottom: 8, fontFamily: 'serif', cursor: 'pointer' }
+const modalBtnStyle = { width: '100%', padding: 14, textAlign: 'left', borderRadius: 6, border: '1px solid #D1CDC7', background: 'white', marginBottom: 10, fontSize: 16, fontFamily: 'serif', cursor: 'pointer' }
