@@ -119,12 +119,15 @@ export default function App() {
   }
 
   async function deleteItem(id) {
-    if (!window.confirm('Delete this item?')) return
     await supabase.from('service_items').delete().eq('id', id)
-    setItems(prev => prev.filter(i => i.id !== id))
+    setItems(prev => {
+      const filtered = prev.filter(i => i.id !== id)
+      const withNewPositions = filtered.map((item, idx) => ({ ...item, position: idx }))
+      withNewPositions.forEach(item => saveItem(item))
+      return withNewPositions
+    })
   }
 
-  // HYBRID MOVE LOGIC
   async function moveItem(id, directionOrTargetId) {
     const index = items.findIndex(i => i.id === id)
     if (index < 0) return
@@ -178,53 +181,63 @@ export default function App() {
   }
 
   if (!session) return (
-    <div style={{ padding: '60px 20px', fontFamily: '-apple-system, sans-serif', maxWidth: 400, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8, letterSpacing: '-0.02em' }}>Worship Planner</h1>
-      <p style={{ color: '#666', marginBottom: 32 }}>Sign in via magic link to begin.</p>
-      {magicSent ? <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '16px', borderRadius: 12 }}>Check your email!</div> : (
+    <div style={{ padding: '60px 20px', fontFamily: 'serif', maxWidth: 400, margin: '0 auto' }}>
+      <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 8 }}>Worship Planner</h1>
+      <p style={{ color: '#444', marginBottom: 32 }}>Enter the sanctuary via magic link.</p>
+      {magicSent ? <div style={{ background: '#F5F2ED', border: '1px solid #D1CDC7', padding: '16px', borderRadius: 12 }}>Check your scroll (email)!</div> : (
         <>
           <input type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} 
-            style={{ width: '100%', padding: '14px', borderRadius: 12, border: '1px solid #ddd', fontSize: 16, marginBottom: 12 }} />
-          <button onClick={sendMagicLink} style={{ width: '100%', padding: '14px', background: '#185FA5', color: 'white', border: 'none', borderRadius: 12, fontWeight: 600, fontSize: 16 }}>Send Magic Link</button>
+            style={{ width: '100%', padding: '14px', borderRadius: 8, border: '1px solid #D1CDC7', fontSize: 16, marginBottom: 12, background: '#FDFCFB' }} />
+          <button onClick={sendMagicLink} style={{ width: '100%', padding: '14px', background: '#3D3D3D', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 16 }}>Send Link</button>
         </>
       )}
     </div>
   )
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto', background: '#F8F9FA', minHeight: '100vh', fontFamily: '-apple-system, sans-serif', paddingBottom: 80 }}>
-      <div style={{ position: 'sticky', top: 0, background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)', padding: '16px', borderBottom: '1px solid #eee', zIndex: 10 }}>
+    <div style={{ maxWidth: 600, margin: '0 auto', background: '#EAE7E2', minHeight: '100vh', fontFamily: 'serif', paddingBottom: 80 }}>
+      <div style={{ position: 'sticky', top: 0, background: '#EAE7E2', padding: '16px', borderBottom: '1px solid #D1CDC7', zIndex: 10 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Service Plan</h2>
-          <span style={{ fontSize: 12, color: saveStatus === 'Synced' ? '#10b981' : '#f59e0b', fontWeight: 600 }}>{saveStatus}</span>
+          <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#2C2C2C' }}>Order of Worship</h2>
+          <span style={{ fontSize: 11, color: '#777', textTransform: 'uppercase', letterSpacing: 1 }}>{saveStatus}</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <input type="date" value={serviceDate} onChange={e => setServiceDate(e.target.value)} 
-            style={{ flex: 1, padding: '8px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14 }} />
-          <button onClick={() => setShowExportModal(true)} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', background: 'white', fontSize: 14 }}>PDF</button>
-          <button onClick={addItem} style={{ padding: '8px 12px', borderRadius: 8, border: 'none', background: '#185FA5', color: 'white', fontSize: 14 }}>+ Item</button>
+            style={{ flex: 1, padding: '8px', borderRadius: 4, border: '1px solid #D1CDC7', fontSize: 14, background: '#F5F2ED' }} />
+          <button onClick={() => setShowExportModal(true)} style={{ padding: '8px 12px', borderRadius: 4, border: '1px solid #D1CDC7', background: 'white', fontSize: 14 }}>Export</button>
+          <button onClick={addItem} style={{ padding: '8px 12px', borderRadius: 4, border: 'none', background: '#5C635A', color: 'white', fontSize: 14 }}>+ Add Item</button>
         </div>
       </div>
 
       <div style={{ padding: 12 }}>
-        {items.map(item => (
-          <ItemCard key={item.id} item={item} comments={comments[item.id] || []} 
-            expanded={!!expanded[item.id]} onToggle={() => setExpanded(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
-            onUpdate={updateItem} onFillIn={updateFillIn} onDelete={() => deleteItem(item.id)}
-            onAddComment={addComment} onDragStart={() => onDragStart(item.id)} onDrop={() => onDrop(item.id)}
+        {items.map((item, index) => (
+          <ItemCard 
+            key={item.id} 
+            item={item} 
+            index={index}
+            totalItems={items.length}
+            comments={comments[item.id] || []} 
+            expanded={!!expanded[item.id]} 
+            onToggle={() => setExpanded(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+            onUpdate={updateItem} 
+            onFillIn={updateFillIn} 
+            onDelete={() => deleteItem(item.id)}
+            onAddComment={addComment} 
+            onDragStart={() => onDragStart(item.id)} 
+            onDrop={() => onDrop(item.id)}
             onMove={moveItem}
           />
         ))}
       </div>
 
       {showExportModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}>
-          <div style={{ background: 'white', padding: 24, borderRadius: 20, width: '100%', maxWidth: 340 }}>
-            <h3 style={{ marginTop: 0 }}>Export Plan</h3>
-            <button onClick={() => { exportPDF(false, false); setShowExportModal(false) }} style={modalBtnStyle}>Order of Service</button>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}>
+          <div style={{ background: '#F5F2ED', padding: 24, borderRadius: 8, width: '100%', maxWidth: 340, border: '1px solid #D1CDC7' }}>
+            <h3 style={{ marginTop: 0, fontFamily: 'serif' }}>Export Manuscript</h3>
+            <button onClick={() => { exportPDF(false, false); setShowExportModal(false) }} style={modalBtnStyle}>Bulletin Format</button>
             <button onClick={() => { exportPDF(true, false); setShowExportModal(false) }} style={modalBtnStyle}>With Notes</button>
-            <button onClick={() => { exportPDF(true, true); setShowExportModal(false) }} style={modalBtnStyle}>Full Script</button>
-            <button onClick={() => setShowExportModal(false)} style={{ width: '100%', background: 'none', border: 'none', color: '#666', marginTop: 12 }}>Cancel</button>
+            <button onClick={() => { exportPDF(true, true); setShowExportModal(false) }} style={modalBtnStyle}>Full Liturgy Script</button>
+            <button onClick={() => setShowExportModal(false)} style={{ width: '100%', background: 'none', border: 'none', color: '#777', marginTop: 12, cursor: 'pointer' }}>Return</button>
           </div>
         </div>
       )}
@@ -232,78 +245,124 @@ export default function App() {
   )
 }
 
-function ItemCard({ item, comments, expanded, onToggle, onUpdate, onFillIn, onDelete, onAddComment, onDragStart, onDrop, onMove }) {
+function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpdate, onFillIn, onDelete, onAddComment, onDragStart, onDrop, onMove }) {
   const isNS = item.type === NONSTANDARD
   const [msg, setMsg] = useState('')
+  const [swipeOffset, setSwipeOffset] = useState(0)
+  const [touchStart, setTouchStart] = useState(null)
   const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+  
+  // Alternating colors (Parchment and Stone)
+  const bgColor = index % 2 === 0 ? '#F5F2ED' : '#E3E5E2'
+
+  // SWIPE LOGIC
+  const handleTouchStart = (e) => setTouchStart(e.targetTouches[0].clientX)
+  const handleTouchMove = (e) => {
+    const currentTouch = e.targetTouches[0].clientX
+    const diff = touchStart - currentTouch
+    if (diff > 0 && diff < 100) setSwipeOffset(diff) // Only swipe left
+  }
+  const handleTouchEnd = () => {
+    if (swipeOffset > 70) setSwipeOffset(80) // Snap open
+    else setSwipeOffset(0) // Snap shut
+  }
 
   return (
-    <div 
-      data-drag-id={item.id}
-      draggable={!isMobile} 
-      onDragStart={() => onDragStart(item.id)} 
-      onDragOver={e => e.preventDefault()} 
-      onDrop={() => onDrop(item.id)}
-      style={{ background: 'white', borderRadius: '16px', marginBottom: '12px', border: '1px solid #efefef', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
-    >
-      <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-        
-        {isMobile ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <button onClick={() => onMove(item.id, 'up')} style={arrowBtnStyle}>▲</button>
-            <button onClick={() => onMove(item.id, 'down')} style={arrowBtnStyle}>▼</button>
-          </div>
-        ) : (
-          <div style={{ color: '#ccc', fontSize: '20px', cursor: 'grab', padding: '0 8px' }}>⠿</div>
-        )}
-        
-        <div style={{ flex: 1 }} onClick={onToggle}>
-          <div style={{ fontSize: 10, fontWeight: 800, color: isNS ? '#b45309' : '#1d4ed8', textTransform: 'uppercase', marginBottom: 2 }}>{item.type}</div>
-          <div style={{ fontWeight: 600, fontSize: 17, color: '#333' }}>{item.title}</div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button onClick={(e) => { e.stopPropagation(); onToggle() }}
-            style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #185FA5', background: expanded ? '#185FA5' : 'white', color: expanded ? 'white' : '#185FA5', fontSize: '13px', fontWeight: '600' }}>
-            {expanded ? 'Done' : 'Edit'}
-          </button>
-          <button onClick={(e) => { e.stopPropagation(); onDelete() }} style={{ background: 'none', border: 'none', fontSize: '20px' }}>🗑️</button>
-        </div>
+    <div style={{ position: 'relative', marginBottom: '12px', overflow: 'hidden', borderRadius: '8px' }}>
+      
+      {/* Background Delete Action */}
+      <div 
+        onClick={() => { if(window.confirm('Delete this item?')) onDelete() }}
+        style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 80, background: '#8B4513', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+        DELETE
       </div>
 
-      {expanded && (
-        <div style={{ padding: '0 16px 16px', borderTop: '1px solid #f9f9f9' }}>
-          <div style={{ marginTop: 10 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: '#999', textTransform: 'uppercase' }}>Title</label>
-            <input value={item.title} onChange={e => onUpdate(item.id, 'title', e.target.value)} style={cardInputStyle} />
-          </div>
-          {isNS && Object.keys(item.fill_in).map(f => (
-            <div key={f} style={{ marginTop: 10 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: '#999', textTransform: 'uppercase' }}>{f}</label>
-              <input value={item.fill_in[f] || ''} onChange={e => onFillIn(item.id, f, e.target.value)} style={cardInputStyle} />
-            </div>
-          ))}
-          <div style={{ marginTop: 10 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: '#999', textTransform: 'uppercase' }}>Notes</label>
-            <textarea value={item.notes} onChange={e => onUpdate(item.id, 'notes', e.target.value)} style={cardInputStyle} />
-          </div>
-          <div style={{ marginTop: 10 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: '#999', textTransform: 'uppercase' }}>Script / Talking Points</label>
-            <textarea value={item.script} onChange={e => onUpdate(item.id, 'script', e.target.value)} style={{ ...cardInputStyle, minHeight: 80 }} />
-          </div>
+      <div 
+        data-drag-id={item.id}
+        draggable={!isMobile} 
+        onDragStart={() => onDragStart(item.id)} 
+        onDragOver={e => e.preventDefault()} 
+        onDrop={() => onDrop(item.id)}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={{ 
+          background: bgColor, 
+          border: '1px solid #D1CDC7', 
+          transition: 'transform 0.2s ease',
+          transform: `translateX(-${swipeOffset}px)`,
+          position: 'relative',
+          zIndex: 2
+        }}
+      >
+        <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
           
-          <div style={{ marginTop: 20, background: '#f9fafb', borderRadius: 12, padding: 12 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>Comments</div>
-            {comments.map(c => <div key={c.id} style={{ fontSize: 13, marginBottom: 4 }}><strong>{c.author_name}:</strong> {c.body}</div>)}
-            <input value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => { if(e.key === 'Enter') { onAddComment(item.id, msg); setMsg('') }}}
-              placeholder="Add a comment..." style={{ width: '100%', border: '1px solid #ddd', padding: 10, borderRadius: 8, marginTop: 8, fontSize: 14 }} />
+          {/* STEP INDICATOR */}
+          <div style={{ 
+            width: 28, height: 28, borderRadius: '50%', border: '1px solid #AAA', 
+            display: 'flex', alignItems: 'center', justifyContent: 'center', 
+            fontSize: 12, color: '#555', flexShrink: 0, background: 'rgba(255,255,255,0.3)' 
+          }}>
+            {index + 1}
+          </div>
+
+          <div style={{ flex: 1 }} onClick={onToggle}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: isNS ? '#8B4513' : '#5C635A', textTransform: 'uppercase', marginBottom: 2, letterSpacing: 0.5 }}>{item.type}</div>
+            <div style={{ fontWeight: 600, fontSize: 18, color: '#2C2C2C' }}>{item.title}</div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* HYBRID CONTROLS */}
+            {isMobile ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                {index > 0 && <button onClick={() => onMove(item.id, 'up')} style={arrowBtnStyle}>▲</button>}
+                {index < totalItems - 1 && <button onClick={() => onMove(item.id, 'down')} style={arrowBtnStyle}>▼</button>}
+              </div>
+            ) : (
+              <div style={{ color: '#AAA', fontSize: '20px', cursor: 'grab', padding: '0 8px' }}>⠿</div>
+            )}
+            
+            <button onClick={(e) => { e.stopPropagation(); onToggle() }}
+              style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #5C635A', background: expanded ? '#5C635A' : 'transparent', color: expanded ? 'white' : '#5C635A', fontSize: '12px', fontWeight: '600' }}>
+              {expanded ? 'Done' : 'Edit'}
+            </button>
           </div>
         </div>
-      )}
+
+        {expanded && (
+          <div style={{ padding: '0 16px 16px', borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+            <div style={{ marginTop: 10 }}>
+              <label style={{ fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>Item Name</label>
+              <input value={item.title} onChange={e => onUpdate(item.id, 'title', e.target.value)} style={cardInputStyle} />
+            </div>
+            {isNS && Object.keys(item.fill_in).map(f => (
+              <div key={f} style={{ marginTop: 10 }}>
+                <label style={{ fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>{f}</label>
+                <input value={item.fill_in[f] || ''} onChange={e => onFillIn(item.id, f, e.target.value)} style={cardInputStyle} />
+              </div>
+            ))}
+            <div style={{ marginTop: 10 }}>
+              <label style={{ fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>Director Notes</label>
+              <textarea value={item.notes} onChange={e => onUpdate(item.id, 'notes', e.target.value)} style={cardInputStyle} />
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <label style={{ fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>Full Script</label>
+              <textarea value={item.script} onChange={e => onUpdate(item.id, 'script', e.target.value)} style={{ ...cardInputStyle, minHeight: 80 }} />
+            </div>
+            
+            <div style={{ marginTop: 20, background: 'rgba(0,0,0,0.03)', borderRadius: 4, padding: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 8, color: '#666' }}>COMMUNICATIONS</div>
+              {comments.map(c => <div key={c.id} style={{ fontSize: 13, marginBottom: 4 }}><strong>{c.author_name}:</strong> {c.body}</div>)}
+              <input value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => { if(e.key === 'Enter') { onAddComment(item.id, msg); setMsg('') }}}
+                placeholder="Write a message..." style={{ width: '100%', border: '1px solid #D1CDC7', padding: 8, borderRadius: 4, marginTop: 8, fontSize: 14, background: 'transparent' }} />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
-const cardInputStyle = { width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #eee', fontSize: 14, marginTop: 4, outline: 'none', fontFamily: 'inherit' }
-const arrowBtnStyle = { border: '1px solid #eee', background: 'white', borderRadius: '6px', padding: '2px 8px', fontSize: '12px', cursor: 'pointer' }
-const modalBtnStyle = { width: '100%', padding: 14, textAlign: 'left', borderRadius: 12, border: '1px solid #eee', background: '#f9fafb', marginBottom: 8, fontSize: 15, fontWeight: 500 }
+const cardInputStyle = { width: '100%', padding: '10px', borderRadius: 4, border: '1px solid #D1CDC7', fontSize: 14, marginTop: 4, outline: 'none', background: 'rgba(255,255,255,0.5)', fontFamily: 'serif' }
+const arrowBtnStyle = { border: 'none', background: 'transparent', padding: '0 8px', fontSize: '10px', cursor: 'pointer', color: '#888' }
+const modalBtnStyle = { width: '100%', padding: 14, textAlign: 'left', borderRadius: 4, border: '1px solid #D1CDC7', background: 'white', marginBottom: 8, fontSize: 15, fontFamily: 'serif', cursor: 'pointer' }
