@@ -223,8 +223,8 @@ export default function App() {
             onFillIn={updateFillIn} 
             onDelete={() => deleteItem(item.id)}
             onAddComment={addComment} 
-            onDragStart={() => onDragStart(item.id)} 
-            onDrop={() => onDrop(item.id)}
+            onDragStart={onDragStart} 
+            onDrop={onDrop}
             onMove={moveItem}
           />
         ))}
@@ -252,19 +252,32 @@ function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpd
   const [touchStart, setTouchStart] = useState(null)
   const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0
   
-  // Alternating colors (Parchment and Stone)
   const bgColor = index % 2 === 0 ? '#F5F2ED' : '#E3E5E2'
 
-  // SWIPE LOGIC
+  // BROWSER DRAG OVERLAY FIX
+  const handleDragStart = (e) => {
+    e.dataTransfer.effectAllowed = "move"
+    onDragStart(item.id)
+  }
+
+  // SWIPE LOGIC FIX (Now snaps back on interaction)
   const handleTouchStart = (e) => setTouchStart(e.targetTouches[0].clientX)
   const handleTouchMove = (e) => {
     const currentTouch = e.targetTouches[0].clientX
     const diff = touchStart - currentTouch
-    if (diff > 0 && diff < 100) setSwipeOffset(diff) // Only swipe left
+    if (diff > 20 && diff < 100) setSwipeOffset(diff) 
   }
   const handleTouchEnd = () => {
-    if (swipeOffset > 70) setSwipeOffset(80) // Snap open
-    else setSwipeOffset(0) // Snap shut
+    if (swipeOffset > 60) setSwipeOffset(80) 
+    else setSwipeOffset(0) 
+  }
+
+  const handleDelete = (e) => {
+    e.stopPropagation()
+    if(window.confirm('Delete this item?')) {
+      onDelete()
+    }
+    setSwipeOffset(0) // Reset position after action
   }
 
   return (
@@ -272,7 +285,7 @@ function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpd
       
       {/* Background Delete Action */}
       <div 
-        onClick={() => { if(window.confirm('Delete this item?')) onDelete() }}
+        onClick={handleDelete}
         style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 80, background: '#8B4513', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
         DELETE
       </div>
@@ -280,24 +293,25 @@ function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpd
       <div 
         data-drag-id={item.id}
         draggable={!isMobile} 
-        onDragStart={() => onDragStart(item.id)} 
+        onDragStart={handleDragStart} 
         onDragOver={e => e.preventDefault()} 
         onDrop={() => onDrop(item.id)}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onClick={() => { if(swipeOffset > 0) setSwipeOffset(0) }} // Click to snap back
         style={{ 
           background: bgColor, 
           border: '1px solid #D1CDC7', 
-          transition: 'transform 0.2s ease',
+          transition: 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)',
           transform: `translateX(-${swipeOffset}px)`,
           position: 'relative',
-          zIndex: 2
+          zIndex: 2,
+          cursor: isMobile ? 'default' : 'grab'
         }}
       >
         <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
           
-          {/* STEP INDICATOR */}
           <div style={{ 
             width: 28, height: 28, borderRadius: '50%', border: '1px solid #AAA', 
             display: 'flex', alignItems: 'center', justifyContent: 'center', 
@@ -306,17 +320,16 @@ function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpd
             {index + 1}
           </div>
 
-          <div style={{ flex: 1 }} onClick={onToggle}>
+          <div style={{ flex: 1 }} onClick={() => swipeOffset === 0 && onToggle()}>
             <div style={{ fontSize: 10, fontWeight: 700, color: isNS ? '#8B4513' : '#5C635A', textTransform: 'uppercase', marginBottom: 2, letterSpacing: 0.5 }}>{item.type}</div>
             <div style={{ fontWeight: 600, fontSize: 18, color: '#2C2C2C' }}>{item.title}</div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {/* HYBRID CONTROLS */}
             {isMobile ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                {index > 0 && <button onClick={() => onMove(item.id, 'up')} style={arrowBtnStyle}>▲</button>}
-                {index < totalItems - 1 && <button onClick={() => onMove(item.id, 'down')} style={arrowBtnStyle}>▼</button>}
+                {index > 0 && <button onClick={(e) => { e.stopPropagation(); onMove(item.id, 'up') }} style={arrowBtnStyle}>▲</button>}
+                {index < totalItems - 1 && <button onClick={(e) => { e.stopPropagation(); onMove(item.id, 'down') }} style={arrowBtnStyle}>▼</button>}
               </div>
             ) : (
               <div style={{ color: '#AAA', fontSize: '20px', cursor: 'grab', padding: '0 8px' }}>⠿</div>
