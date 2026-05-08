@@ -110,10 +110,10 @@ export default function App() {
   async function addItem() {
     const title = prompt('Item title:')
     if (!title) return
-    const type = window.confirm('Is this a non-standard item?') ? NONSTANDARD : STANDARD
-    const fill_in = type === NONSTANDARD ? { song: '', artist: '', key: '' } : {}
+    // Defaulting to NONSTANDARD internally to keep fill_in fields available if needed, 
+    // but we no longer display the labels.
     const { data } = await supabase.from('service_items').insert({
-      service_date: serviceDate, type, title, position: items.length, notes: '', script: '', fill_in
+      service_date: serviceDate, type: NONSTANDARD, title, position: items.length, notes: '', script: '', fill_in: { song: '', artist: '', key: '' }
     }).select()
     if (data) setItems(prev => [...prev, data[0]])
   }
@@ -182,7 +182,7 @@ export default function App() {
     <div style={{ padding: '60px 20px', fontFamily: 'serif', maxWidth: 400, margin: '0 auto' }}>
       <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 8 }}>Worship Planner</h1>
       <p style={{ color: '#444', marginBottom: 32 }}>Enter the sanctuary via magic link.</p>
-      {magicSent ? <div style={{ background: '#F5F2ED', border: '1px solid #D1CDC7', padding: '16px', borderRadius: 12 }}>Check your scroll (email)!</div> : (
+      {magicSent ? <div style={{ background: '#F5F2ED', border: '1px solid #D1CDC7', padding: '16px', borderRadius: 12 }}>Check your email.</div> : (
         <>
           <input type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} 
             style={{ width: '100%', padding: '14px', borderRadius: 8, border: '1px solid #D1CDC7', fontSize: 16, marginBottom: 12, background: '#FDFCFB' }} />
@@ -210,20 +210,10 @@ export default function App() {
       <div style={{ padding: 12 }}>
         {items.map((item, index) => (
           <ItemCard 
-            key={item.id} 
-            item={item} 
-            index={index} 
-            totalItems={items.length} 
-            comments={comments[item.id] || []} 
-            expanded={!!expanded[item.id]} 
-            onToggle={() => setExpanded(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
-            onUpdate={updateItem} 
-            onFillIn={updateFillIn} 
-            onDelete={() => deleteItem(item.id)}
-            onAddComment={addComment} 
-            onDragStart={onDragStart} 
-            onDrop={onDrop} 
-            onMove={moveItem}
+            key={item.id} item={item} index={index} totalItems={items.length} comments={comments[item.id] || []} 
+            expanded={!!expanded[item.id]} onToggle={() => setExpanded(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+            onUpdate={updateItem} onFillIn={updateFillIn} onDelete={() => deleteItem(item.id)}
+            onAddComment={addComment} onDragStart={onDragStart} onDrop={onDrop} onMove={moveItem}
           />
         ))}
       </div>
@@ -244,7 +234,6 @@ export default function App() {
 }
 
 function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpdate, onFillIn, onDelete, onAddComment, onDragStart, onDrop, onMove }) {
-  const isNS = item.type === NONSTANDARD
   const [msg, setMsg] = useState('')
   const [swipeOffset, setSwipeOffset] = useState(0)
   const [touchStart, setTouchStart] = useState(null)
@@ -255,23 +244,18 @@ function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpd
   const hasScript = item.script && item.script.trim().length > 0
 
   const handleTouchStart = (e) => setTouchStart(e.targetTouches[0].clientX)
-  
   const handleTouchMove = (e) => {
     const currentTouch = e.targetTouches[0].clientX
     const diff = touchStart - currentTouch
-    if (swipeOffset > 0 || diff > 0) {
-      const newOffset = Math.max(0, Math.min(100, swipeOffset + diff))
-      setSwipeOffset(newOffset)
-    }
+    if (swipeOffset > 0 || diff > 0) setSwipeOffset(Math.max(0, Math.min(100, swipeOffset + diff)))
   }
-
   const handleTouchEnd = () => {
     if (swipeOffset > 50) setSwipeOffset(80) 
     else setSwipeOffset(0) 
   }
 
   const handleAction = (e) => {
-    e.stopPropagation() // Stop interference
+    e.stopPropagation()
     if (swipeOffset > 0) setSwipeOffset(0)
     else onToggle()
   }
@@ -279,16 +263,14 @@ function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpd
   return (
     <div style={{ position: 'relative', marginBottom: '12px', overflow: 'hidden', borderRadius: '8px' }}>
       <div 
-        onClick={() => { if(window.confirm('Delete?')) onDelete(); setSwipeOffset(0) }}
-        style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 80, background: '#8B4513', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
+        onClick={(e) => { e.stopPropagation(); if(window.confirm('Delete?')) onDelete(); setSwipeOffset(0) }}
+        style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 80, background: '#8B4513', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
         DELETE
       </div>
 
       <div 
-        draggable={!isMobile} 
-        onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart(item.id) }} 
-        onDragOver={e => e.preventDefault()} 
-        onDrop={() => onDrop(item.id)}
+        draggable={!isMobile} onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart(item.id) }} 
+        onDragOver={e => e.preventDefault()} onDrop={() => onDrop(item.id)}
         onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
         onClick={handleAction}
         style={{ 
@@ -303,14 +285,13 @@ function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpd
           </div>
 
           <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-              <div style={{ fontSize: 9, fontWeight: 800, color: isNS ? '#8B4513' : '#5C635A', textTransform: 'uppercase', letterSpacing: 1 }}>{item.type}</div>
-              <div style={{ display: 'flex', gap: 6, opacity: 0.5 }}>
-                {hasNotes && <span style={{ fontSize: 8, fontWeight: 900 }}>NTS</span>}
-                {hasScript && <span style={{ fontSize: 8, fontWeight: 900 }}>SCR</span>}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <div style={{ fontWeight: 600, fontSize: 19, color: '#2C2C2C', lineHeight: 1.1 }}>{item.title}</div>
+              <div style={{ display: 'flex', gap: 3, color: '#8B4513', fontWeight: 'bold', fontSize: 14 }}>
+                {hasNotes && <span title="Has Notes">*</span>}
+                {hasScript && <span title="Has Script">†</span>}
               </div>
             </div>
-            <div style={{ fontWeight: 600, fontSize: 19, color: '#2C2C2C', lineHeight: 1.1 }}>{item.title}</div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -322,11 +303,7 @@ function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpd
             ) : (
               <div style={{ color: '#AAA', cursor: 'grab', padding: '0 8px', fontSize: 18 }}>⠿</div>
             )}
-            {/* THE KEBAB MENU TRIGGER */}
-            <div 
-              style={{ fontSize: 20, color: '#5C635A', opacity: 0.6, padding: '4px' }}
-              onClick={(e) => { e.stopPropagation(); handleAction(e); }}
-            >⋮</div>
+            <div style={{ fontSize: 20, color: '#5C635A', opacity: 0.6, padding: '4px' }}>⋮</div>
           </div>
         </div>
 
@@ -336,30 +313,25 @@ function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpd
               <label style={labelStyle}>Item Name</label>
               <input value={item.title} onChange={e => onUpdate(item.id, 'title', e.target.value)} style={cleanInputStyle} />
             </div>
-            {isNS && Object.keys(item.fill_in).map(f => (
+            {Object.keys(item.fill_in).map(f => (
               <div key={f} style={{ marginTop: 16 }}>
                 <label style={labelStyle}>{f}</label>
                 <input value={item.fill_in[f] || ''} onChange={e => onFillIn(item.id, f, e.target.value)} style={cleanInputStyle} />
               </div>
             ))}
             <div style={{ marginTop: 16 }}>
-              <label style={labelStyle}>Director Notes</label>
+              <label style={labelStyle}>Director Notes {hasNotes && '*'}</label>
               <textarea value={item.notes} onChange={e => onUpdate(item.id, 'notes', e.target.value)} style={{ ...cleanInputStyle, minHeight: 60 }} />
             </div>
             <div style={{ marginTop: 16 }}>
-              <label style={labelStyle}>Full Script</label>
+              <label style={labelStyle}>Full Script {hasScript && '†'}</label>
               <textarea value={item.script} onChange={e => onUpdate(item.id, 'script', e.target.value)} style={{ ...cleanInputStyle, minHeight: 100 }} />
             </div>
-            
             <div style={{ marginTop: 24, background: 'rgba(0,0,0,0.03)', borderRadius: 6, padding: 14 }}>
               <div style={{ fontSize: 10, fontWeight: 800, color: '#888', textTransform: 'uppercase', marginBottom: 10, letterSpacing: 1 }}>Messages</div>
-              {comments.map(c => <div key={c.id} style={{ fontSize: 14, marginBottom: 6, borderBottom: '1px solid rgba(0,0,0,0.02)', paddingBottom: 4 }}><strong>{c.author_name}:</strong> {c.body}</div>)}
-              <input 
-                value={msg} 
-                onChange={e => setMsg(e.target.value)} 
-                onKeyDown={e => { if(e.key === 'Enter') { onAddComment(item.id, msg); setMsg('') }}}
-                placeholder="Write a message..." 
-                style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '1px solid #CCC', padding: '8px 0', fontSize: 14, outline: 'none', marginTop: 10 }} 
+              {comments.map(c => <div key={c.id} style={{ fontSize: 14, marginBottom: 6, borderBottom: '1px solid rgba(0,0,0,0.02)', paddingBottom: 4 }}><strong>{c.author_name}:</strong> {c.body}</div>) || 'No messages yet.'}
+              <input value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => { if(e.key === 'Enter') { onAddComment(item.id, msg); setMsg('') }}}
+                placeholder="Write a message..." style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '1px solid #CCC', padding: '8px 0', fontSize: 14, outline: 'none', marginTop: 10 }} 
               />
             </div>
           </div>
