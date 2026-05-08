@@ -254,22 +254,38 @@ function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpd
   
   const bgColor = index % 2 === 0 ? '#F5F2ED' : '#E3E5E2'
 
-  // BROWSER DRAG OVERLAY FIX
   const handleDragStart = (e) => {
     e.dataTransfer.effectAllowed = "move"
     onDragStart(item.id)
   }
 
-  // SWIPE LOGIC FIX (Now snaps back on interaction)
+  // UPDATED SWIPE LOGIC FOR FLUID RETURN
   const handleTouchStart = (e) => setTouchStart(e.targetTouches[0].clientX)
+  
   const handleTouchMove = (e) => {
     const currentTouch = e.targetTouches[0].clientX
     const diff = touchStart - currentTouch
-    if (diff > 20 && diff < 100) setSwipeOffset(diff) 
+    
+    // Allow swiping left (diff > 0) to reveal, 
+    // AND allow swiping right (diff < 0) to close if it's already open
+    if (swipeOffset > 0 || diff > 0) {
+      const newOffset = Math.max(0, Math.min(100, swipeOffset + diff))
+      setSwipeOffset(newOffset)
+    }
   }
+
   const handleTouchEnd = () => {
-    if (swipeOffset > 60) setSwipeOffset(80) 
+    // Determine snap points
+    if (swipeOffset > 50) setSwipeOffset(80) 
     else setSwipeOffset(0) 
+  }
+
+  const handleCardClick = () => {
+    if (swipeOffset > 0) {
+      setSwipeOffset(0) // Snap back if delete is exposed
+    } else {
+      onToggle() // Normal edit behavior
+    }
   }
 
   const handleDelete = (e) => {
@@ -277,7 +293,7 @@ function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpd
     if(window.confirm('Delete this item?')) {
       onDelete()
     }
-    setSwipeOffset(0) // Reset position after action
+    setSwipeOffset(0) 
   }
 
   return (
@@ -299,11 +315,11 @@ function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpd
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        onClick={() => { if(swipeOffset > 0) setSwipeOffset(0) }} // Click to snap back
+        onClick={handleCardClick}
         style={{ 
           background: bgColor, 
           border: '1px solid #D1CDC7', 
-          transition: 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)',
+          transition: 'transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.1)',
           transform: `translateX(-${swipeOffset}px)`,
           position: 'relative',
           zIndex: 2,
@@ -320,7 +336,7 @@ function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpd
             {index + 1}
           </div>
 
-          <div style={{ flex: 1 }} onClick={() => swipeOffset === 0 && onToggle()}>
+          <div style={{ flex: 1 }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: isNS ? '#8B4513' : '#5C635A', textTransform: 'uppercase', marginBottom: 2, letterSpacing: 0.5 }}>{item.type}</div>
             <div style={{ fontWeight: 600, fontSize: 18, color: '#2C2C2C' }}>{item.title}</div>
           </div>
@@ -335,7 +351,7 @@ function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpd
               <div style={{ color: '#AAA', fontSize: '20px', cursor: 'grab', padding: '0 8px' }}>⠿</div>
             )}
             
-            <button onClick={(e) => { e.stopPropagation(); onToggle() }}
+            <button onClick={(e) => { e.stopPropagation(); handleCardClick() }}
               style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #5C635A', background: expanded ? '#5C635A' : 'transparent', color: expanded ? 'white' : '#5C635A', fontSize: '12px', fontWeight: '600' }}>
               {expanded ? 'Done' : 'Edit'}
             </button>
@@ -343,7 +359,7 @@ function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpd
         </div>
 
         {expanded && (
-          <div style={{ padding: '0 16px 16px', borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+          <div style={{ padding: '0 16px 16px', borderTop: '1px solid rgba(0,0,0,0.05)' }} onClick={(e) => e.stopPropagation()}>
             <div style={{ marginTop: 10 }}>
               <label style={{ fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>Item Name</label>
               <input value={item.title} onChange={e => onUpdate(item.id, 'title', e.target.value)} style={cardInputStyle} />
