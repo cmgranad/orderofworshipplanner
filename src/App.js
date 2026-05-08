@@ -203,9 +203,9 @@ export default function App() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <input type="date" value={serviceDate} onChange={e => setServiceDate(e.target.value)} 
-            style={{ flex: 1, padding: '8px', borderRadius: 4, border: '1px solid #D1CDC7', fontSize: 14, background: '#F5F2ED' }} />
-          <button onClick={() => setShowExportModal(true)} style={{ padding: '8px 12px', borderRadius: 4, border: '1px solid #D1CDC7', background: 'white', fontSize: 14 }}>Export</button>
-          <button onClick={addItem} style={{ padding: '8px 12px', borderRadius: 4, border: 'none', background: '#5C635A', color: 'white', fontSize: 14 }}>+ Add Item</button>
+            style={{ flex: 1, padding: '8px', borderRadius: 4, border: '1px solid #D1CDC7', background: '#F5F2ED' }} />
+          <button onClick={() => setShowExportModal(true)} style={{ padding: '8px 12px', borderRadius: 4, border: '1px solid #D1CDC7', background: 'white' }}>Export</button>
+          <button onClick={addItem} style={{ padding: '8px 12px', borderRadius: 4, border: 'none', background: '#5C635A', color: 'white' }}>+ Item</button>
         </div>
       </div>
 
@@ -214,8 +214,8 @@ export default function App() {
           <ItemCard 
             key={item.id} 
             item={item} 
-            index={index}
-            totalItems={items.length}
+            index={index} 
+            totalItems={items.length} 
             comments={comments[item.id] || []} 
             expanded={!!expanded[item.id]} 
             onToggle={() => setExpanded(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
@@ -224,7 +224,7 @@ export default function App() {
             onDelete={() => deleteItem(item.id)}
             onAddComment={addComment} 
             onDragStart={onDragStart} 
-            onDrop={onDrop}
+            onDrop={onDrop} 
             onMove={moveItem}
           />
         ))}
@@ -233,11 +233,11 @@ export default function App() {
       {showExportModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}>
           <div style={{ background: '#F5F2ED', padding: 24, borderRadius: 8, width: '100%', maxWidth: 340, border: '1px solid #D1CDC7' }}>
-            <h3 style={{ marginTop: 0, fontFamily: 'serif' }}>Export Manuscript</h3>
+            <h3 style={{ marginTop: 0 }}>Export Manuscript</h3>
             <button onClick={() => { exportPDF(false, false); setShowExportModal(false) }} style={modalBtnStyle}>Bulletin Format</button>
             <button onClick={() => { exportPDF(true, false); setShowExportModal(false) }} style={modalBtnStyle}>With Notes</button>
-            <button onClick={() => { exportPDF(true, true); setShowExportModal(false) }} style={modalBtnStyle}>Full Liturgy Script</button>
-            <button onClick={() => setShowExportModal(false)} style={{ width: '100%', background: 'none', border: 'none', color: '#777', marginTop: 12, cursor: 'pointer' }}>Return</button>
+            <button onClick={() => { exportPDF(true, true); setShowExportModal(false) }} style={modalBtnStyle}>Full Script</button>
+            <button onClick={() => setShowExportModal(false)} style={{ width: '100%', background: 'none', border: 'none', color: '#777', marginTop: 12 }}>Return</button>
           </div>
         </div>
       )}
@@ -251,23 +251,16 @@ function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpd
   const [swipeOffset, setSwipeOffset] = useState(0)
   const [touchStart, setTouchStart] = useState(null)
   const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0
-  
   const bgColor = index % 2 === 0 ? '#F5F2ED' : '#E3E5E2'
 
-  const handleDragStart = (e) => {
-    e.dataTransfer.effectAllowed = "move"
-    onDragStart(item.id)
-  }
+  const hasNotes = item.notes && item.notes.trim().length > 0
+  const hasScript = item.script && item.script.trim().length > 0
 
-  // UPDATED SWIPE LOGIC FOR FLUID RETURN
   const handleTouchStart = (e) => setTouchStart(e.targetTouches[0].clientX)
   
   const handleTouchMove = (e) => {
     const currentTouch = e.targetTouches[0].clientX
     const diff = touchStart - currentTouch
-    
-    // Allow swiping left (diff > 0) to reveal, 
-    // AND allow swiping right (diff < 0) to close if it's already open
     if (swipeOffset > 0 || diff > 0) {
       const newOffset = Math.max(0, Math.min(100, swipeOffset + diff))
       setSwipeOffset(newOffset)
@@ -275,31 +268,23 @@ function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpd
   }
 
   const handleTouchEnd = () => {
-    // Determine snap points
     if (swipeOffset > 50) setSwipeOffset(80) 
     else setSwipeOffset(0) 
   }
 
-  const handleCardClick = () => {
-    if (swipeOffset > 0) {
-      setSwipeOffset(0) // Snap back if delete is exposed
-    } else {
-      onToggle() // Normal edit behavior
-    }
+  const handleAction = () => {
+    if (swipeOffset > 0) setSwipeOffset(0)
+    else onToggle()
   }
 
   const handleDelete = (e) => {
     e.stopPropagation()
-    if(window.confirm('Delete this item?')) {
-      onDelete()
-    }
-    setSwipeOffset(0) 
+    if(window.confirm('Delete this item?')) onDelete()
+    setSwipeOffset(0)
   }
 
   return (
     <div style={{ position: 'relative', marginBottom: '12px', overflow: 'hidden', borderRadius: '8px' }}>
-      
-      {/* Background Delete Action */}
       <div 
         onClick={handleDelete}
         style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 80, background: '#8B4513', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
@@ -307,81 +292,67 @@ function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpd
       </div>
 
       <div 
-        data-drag-id={item.id}
-        draggable={!isMobile} 
-        onDragStart={handleDragStart} 
-        onDragOver={e => e.preventDefault()} 
-        onDrop={() => onDrop(item.id)}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onClick={handleCardClick}
+        draggable={!isMobile} onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart(item.id) }} 
+        onDragOver={e => e.preventDefault()} onDrop={() => onDrop(item.id)}
+        onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
+        onClick={handleAction}
         style={{ 
-          background: bgColor, 
-          border: '1px solid #D1CDC7', 
-          transition: 'transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.1)',
-          transform: `translateX(-${swipeOffset}px)`,
-          position: 'relative',
-          zIndex: 2,
-          cursor: isMobile ? 'default' : 'grab'
+          background: bgColor, border: '1px solid #D1CDC7', zIndex: 2, position: 'relative',
+          transition: 'transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.1)', transform: `translateX(-${swipeOffset}px)`
         }}
       >
         <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          
-          <div style={{ 
-            width: 28, height: 28, borderRadius: '50%', border: '1px solid #AAA', 
-            display: 'flex', alignItems: 'center', justifyContent: 'center', 
-            fontSize: 12, color: '#555', flexShrink: 0, background: 'rgba(255,255,255,0.3)' 
-          }}>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', border: '1px solid #AAA', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#555', background: 'rgba(255,255,255,0.3)' }}>
             {index + 1}
           </div>
 
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: isNS ? '#8B4513' : '#5C635A', textTransform: 'uppercase', marginBottom: 2, letterSpacing: 0.5 }}>{item.type}</div>
-            <div style={{ fontWeight: 600, fontSize: 18, color: '#2C2C2C' }}>{item.title}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: isNS ? '#8B4513' : '#5C635A', textTransform: 'uppercase', letterSpacing: 0.5 }}>{item.type}</div>
+              <div style={{ display: 'flex', gap: 6, opacity: 0.4 }}>
+                {hasNotes && <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: 1 }}>NTS</span>}
+                {hasScript && <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: 1 }}>SCR</span>}
+              </div>
+            </div>
+            <div style={{ fontWeight: 600, fontSize: 18, color: '#2C2C2C', lineHeight: 1.2 }}>{item.title}</div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {isMobile ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {index > 0 && <button onClick={(e) => { e.stopPropagation(); onMove(item.id, 'up') }} style={arrowBtnStyle}>▲</button>}
                 {index < totalItems - 1 && <button onClick={(e) => { e.stopPropagation(); onMove(item.id, 'down') }} style={arrowBtnStyle}>▼</button>}
               </div>
             ) : (
-              <div style={{ color: '#AAA', fontSize: '20px', cursor: 'grab', padding: '0 8px' }}>⠿</div>
+              <div style={{ color: '#AAA', cursor: 'grab', padding: '0 8px' }}>⠿</div>
             )}
-            
-            <button onClick={(e) => { e.stopPropagation(); handleCardClick() }}
-              style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #5C635A', background: expanded ? '#5C635A' : 'transparent', color: expanded ? 'white' : '#5C635A', fontSize: '12px', fontWeight: '600' }}>
-              {expanded ? 'Done' : 'Edit'}
-            </button>
+            <div style={{ fontSize: 16, color: '#5C635A', transition: 'transform 0.3s', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>⌄</div>
           </div>
         </div>
 
         {expanded && (
-          <div style={{ padding: '0 16px 16px', borderTop: '1px solid rgba(0,0,0,0.05)' }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ padding: '0 16px 16px', borderTop: '1px solid rgba(0,0,0,0.05)' }} onClick={e => e.stopPropagation()}>
             <div style={{ marginTop: 10 }}>
-              <label style={{ fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>Item Name</label>
+              <label style={labelStyle}>Item Name</label>
               <input value={item.title} onChange={e => onUpdate(item.id, 'title', e.target.value)} style={cardInputStyle} />
             </div>
             {isNS && Object.keys(item.fill_in).map(f => (
               <div key={f} style={{ marginTop: 10 }}>
-                <label style={{ fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>{f}</label>
+                <label style={labelStyle}>{f}</label>
                 <input value={item.fill_in[f] || ''} onChange={e => onFillIn(item.id, f, e.target.value)} style={cardInputStyle} />
               </div>
             ))}
             <div style={{ marginTop: 10 }}>
-              <label style={{ fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>Director Notes</label>
+              <label style={labelStyle}>Director Notes</label>
               <textarea value={item.notes} onChange={e => onUpdate(item.id, 'notes', e.target.value)} style={cardInputStyle} />
             </div>
             <div style={{ marginTop: 10 }}>
-              <label style={{ fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>Full Script</label>
+              <label style={labelStyle}>Full Script</label>
               <textarea value={item.script} onChange={e => onUpdate(item.id, 'script', e.target.value)} style={{ ...cardInputStyle, minHeight: 80 }} />
             </div>
-            
             <div style={{ marginTop: 20, background: 'rgba(0,0,0,0.03)', borderRadius: 4, padding: 12 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 8, color: '#666' }}>COMMUNICATIONS</div>
-              {comments.map(c => <div key={c.id} style={{ fontSize: 13, marginBottom: 4 }}><strong>{c.author_name}:</strong> {c.body}</div>)}
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#666' }}>MESSAGES</div>
+              {comments.map(c => <div key={c.id} style={{ fontSize: 13, marginTop: 4 }}><strong>{c.author_name}:</strong> {c.body}</div>)}
               <input value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => { if(e.key === 'Enter') { onAddComment(item.id, msg); setMsg('') }}}
                 placeholder="Write a message..." style={{ width: '100%', border: '1px solid #D1CDC7', padding: 8, borderRadius: 4, marginTop: 8, fontSize: 14, background: 'transparent' }} />
             </div>
@@ -392,6 +363,7 @@ function ItemCard({ item, index, totalItems, comments, expanded, onToggle, onUpd
   )
 }
 
+const labelStyle = { fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase' }
 const cardInputStyle = { width: '100%', padding: '10px', borderRadius: 4, border: '1px solid #D1CDC7', fontSize: 14, marginTop: 4, outline: 'none', background: 'rgba(255,255,255,0.5)', fontFamily: 'serif' }
-const arrowBtnStyle = { border: 'none', background: 'transparent', padding: '0 8px', fontSize: '10px', cursor: 'pointer', color: '#888' }
-const modalBtnStyle = { width: '100%', padding: 14, textAlign: 'left', borderRadius: 4, border: '1px solid #D1CDC7', background: 'white', marginBottom: 8, fontSize: 15, fontFamily: 'serif', cursor: 'pointer' }
+const arrowBtnStyle = { border: 'none', background: 'transparent', padding: '0 8px', fontSize: '10px', color: '#888', cursor: 'pointer' }
+const modalBtnStyle = { width: '100%', padding: 14, textAlign: 'left', borderRadius: 4, border: '1px solid #D1CDC7', background: 'white', marginBottom: 8, fontFamily: 'serif', cursor: 'pointer' }
